@@ -4,6 +4,12 @@ use crate::packet::Packet;
 use anyhow::{anyhow, Context, Result};
 use std::{thread, time};
 
+#[cfg(target_os = "linux")]
+use std::fs;
+
+#[cfg(target_os = "linux")]
+use log::debug;
+
 pub struct Device {
     device: hidapi::HidDevice,
     pub info: Descriptor,

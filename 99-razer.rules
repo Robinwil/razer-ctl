@@ -1,0 +1,27 @@
+# udev rules for Razer Blade laptops
+# Install to /etc/udev/rules.d/99-razer.rules
+# Then reload with: sudo udevadm control --reload-rules && sudo udevadm trigger
+
+# Razer Blade 16 (2023) Black
+SUBSYSTEM=="usb", ATTR{idVendor}=="1532", ATTR{idProduct}=="029f", MODE="0666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="029f", MODE="0666", GROUP="plugdev"
+
+# Razer Blade 14 (2023) Mercury
+SUBSYSTEM=="usb", ATTR{idVendor}=="1532", ATTR{idProduct}=="029d", MODE="0666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="029d", MODE="0666", GROUP="plugdev"
+
+# Razer Blade 16 (2024)
+SUBSYSTEM=="usb", ATTR{idVendor}=="1532", ATTR{idProduct}=="02b7", MODE="0666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="02b7", MODE="0666", GROUP="plugdev"
+
+# Razer Blade 16 (2025) RTX 5090/5080/5070
+SUBSYSTEM=="usb", ATTR{idVendor}=="1532", ATTR{idProduct}=="02c6", MODE="0666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="02c6", MODE="0666", GROUP="plugdev"
+
+# Razer Blade 15 (2022)
+SUBSYSTEM=="usb", ATTR{idVendor}=="1532", ATTR{idProduct}=="028a", MODE="0666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="028a", MODE="0666", GROUP="plugdev"
+
+# Razer Blade 17 (2021)
+SUBSYSTEM=="usb", ATTR{idVendor}=="1532", ATTR{idProduct}=="0279", MODE="0666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0279", MODE="0666", GROUP="plugdev"

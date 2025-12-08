@@ -67,11 +67,74 @@ Special thanks to
 * [openrazer](https://github.com/openrazer) for [Reverse-Engineering-USB-Protocol](https://github.com/openrazer/openrazer/wiki/Reverse-Engineering-USB-Protocol)
 * [Razer-Linux](https://github.com/Razer-Linux/razer-laptop-control-no-dkms) for USB HID protocol implementation
 
+## Linux Installation
+
+### Prerequisites
+
+**Debian/Ubuntu:**
+```bash
+sudo apt install libhidapi-dev libgtk-3-dev libayatana-appindicator3-dev libudev-dev pkg-config
+```
+
+**Fedora:**
+```bash
+sudo dnf install hidapi-devel gtk3-devel libappindicator-gtk3-devel systemd-devel
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S hidapi gtk3 libappindicator-gtk3
+```
+
+### Quick Install
+
+```bash
+# Clone and build
+git clone https://github.com/Robinwil/razer-ctl.git
+cd razer-ctl
+
+# Run installer (sets up udev rules and permissions)
+chmod +x install-linux.sh
+./install-linux.sh
+
+# Build
+cargo build --release
+
+# Run CLI
+./target/release/razer-cli enumerate
+
+# Run tray app
+./target/release/razer-tray
+```
+
+### Manual Setup (if not using install script)
+
+1. Install udev rules for device access:
+```bash
+sudo cp 99-razer.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+2. Add your user to the plugdev group:
+```bash
+sudo usermod -aG plugdev $USER
+# Log out and back in for this to take effect
+```
+
+3. Build and run:
+```bash
+cargo build --release
+./target/release/razer-cli auto info
+```
+
 ## FAQ
 
 **Q**: *How to build?*
 
-**A**: I build in WSL2(Arch) with `cargo run --release --target x86_64-pc-windows-gnu --bin razer-tray`.
+**A**: 
+- **Linux**: `cargo build --release`
+- **Windows (from WSL2)**: `cargo build --release --target x86_64-pc-windows-gnu`
 
 **Q**: *Does it work on Linux?*
 
