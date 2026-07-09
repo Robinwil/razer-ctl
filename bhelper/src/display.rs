@@ -28,12 +28,17 @@ pub fn print_device_info_json(device: &BladeDevice) {
 }
 
 pub fn print_status(device: &BladeDevice, state: &DeviceState) {
-    println!(
+    let header = format!(
         "{} {}",
         device.name().bold(),
         format!("({})", device.model()).dimmed()
     );
-    println!("{}", "─".repeat(40).dimmed());
+    if let Some(ref fw) = state.firmware_version {
+        println!("{}  {}", header, format!("FW {}", fw).dimmed());
+    } else {
+        println!("{}", header);
+    }
+    println!("{}", "─".repeat(56).dimmed());
 
     if let Some(perf_mode) = state.perf_mode {
         let mode_color = match perf_mode {
@@ -65,7 +70,25 @@ pub fn print_status(device: &BladeDevice, state: &DeviceState) {
         println!("{} {:?}", "Max Fan:".dimmed(), max_fan);
     }
 
+    if let Some(ref rpms) = state.fan_rpms {
+        println!();
+        println!("{}", "Fans:".dimmed());
+        let labels = fan_zone_labels(device.fan_zones());
+        for (i, rpm) in rpms.iter().enumerate() {
+            let label = labels.get(i).unwrap_or(&"?");
+            let bar = format_rpm_bar(*rpm);
+            println!(
+                "  {} {}  {}  {}",
+                format!("Zone {}", i + 1).dimmed(),
+                format!("({})", label).dimmed(),
+                format!("{:>4} RPM", rpm).cyan(),
+                bar
+            );
+        }
+    }
+
     if let Some(brightness) = state.keyboard_brightness {
+        println!();
         let bar = format_brightness_bar(brightness);
         println!("{} {} {}", "Keyboard:".dimmed(), brightness, bar);
     }
@@ -143,6 +166,23 @@ pub fn print_setting_changed_json(name: &str, value: &SettingValue) {
         value: value.to_string(),
     };
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
+}
+
+fn fan_zone_labels(fan_zones: u8) -> Vec<&'static str> {
+    match fan_zones {
+        4 => vec!["L", "R", "l", "r"],
+        _ => vec!["L", "R"],
+    }
+}
+
+fn format_rpm_bar(rpm: u16) -> String {
+    let filled = ((rpm as usize).min(5000) * 10) / 5000;
+    let empty = 10 - filled;
+    format!(
+        "[{}{}]",
+        "█".repeat(filled).cyan(),
+        "░".repeat(empty).dimmed()
+    )
 }
 
 fn format_brightness_bar(brightness: u8) -> String {

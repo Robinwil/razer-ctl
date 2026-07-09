@@ -28,15 +28,12 @@ pub enum Cluster {
     Gpu = 0x02,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum FanZone {
     Zone1 = 0x01,
     Zone2 = 0x02,
-}
-
-impl FanZone {
-    /// Both fan zones for operations that affect all fans
-    pub const ALL: [FanZone; 2] = [FanZone::Zone1, FanZone::Zone2];
+    Zone3 = 0x03,
+    Zone4 = 0x04,
 }
 
 /// Thermal zones for performance mode operations

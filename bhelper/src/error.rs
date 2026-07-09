@@ -16,6 +16,9 @@ pub enum Error {
 
     #[error("Device error: {0}")]
     Device(#[from] librazer::error::RazerError),
+
+    #[error("Interactive mode error: {0}")]
+    Interactive(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

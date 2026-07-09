@@ -96,6 +96,12 @@ impl Packet {
         &self.args[..self.data_size as usize]
     }
 
+    /// Returns the full 80-byte args buffer, ignoring data_size.
+    /// Useful for commands where the response data extends beyond the reported data_size.
+    pub fn get_raw_args(&self) -> &[u8; 80] {
+        &self.args
+    }
+
     /// Validates that this response packet matches the original report.
     ///
     /// Checks command class, command ID, transaction ID, and status code.
@@ -107,9 +113,9 @@ impl Packet {
         }
 
         if self.remaining_packets != report.remaining_packets
-            && (self.command_class, self.command_id) != (0x07, 0x92) /* 0x0792 (bho) has special handling */
-            && (self.command_class, self.command_id) != (0x07, 0x8f)
-        /* 0x078f max fan speed mode has special handling */
+            && (self.command_class, self.command_id) != (0x07, 0x92) /* 0x0792 battery care */
+            && (self.command_class, self.command_id) != (0x07, 0x8f) /* 0x078f max fan speed */
+            && (self.command_class, self.command_id) != (0x00, 0x81) /* 0x0081 firmware version */
         {
             return Err(RazerError::ResponseMismatch);
         }

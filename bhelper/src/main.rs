@@ -3,6 +3,7 @@ mod config;
 mod device;
 mod display;
 mod error;
+mod interactive;
 mod settings;
 
 use clap::Parser;
@@ -41,11 +42,12 @@ fn run(cli: Cli) -> Result<()> {
     let json = cli.json;
 
     match cli.command {
-        Commands::Status => cmd_status(json)?,
-        Commands::Get { setting } => cmd_get(setting, json)?,
-        Commands::Set { setting } => cmd_set(setting, json)?,
-        Commands::Info => cmd_info(json)?,
-        Commands::Config { action } => cmd_config(action, json)?,
+        None => interactive::run()?,
+        Some(Commands::Status) => cmd_status(json)?,
+        Some(Commands::Get { setting }) => cmd_get(setting, json)?,
+        Some(Commands::Set { setting }) => cmd_set(setting, json)?,
+        Some(Commands::Info) => cmd_info(json)?,
+        Some(Commands::Config { action }) => cmd_config(action, json)?,
     }
 
     Ok(())

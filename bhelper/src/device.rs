@@ -104,8 +104,20 @@ impl BladeDevice {
         self.inner.info.features
     }
 
+    pub fn fan_zones(&self) -> u8 {
+        self.inner.info.fan_zones
+    }
+
     pub fn supports(&self, feature: &str) -> bool {
         self.inner.info.features.contains(&feature)
+    }
+
+    pub fn perf_modes(&self) -> Option<&'static [types::PerfMode]> {
+        self.inner.info.perf_modes
+    }
+
+    pub(crate) fn inner(&self) -> &device::Device {
+        &self.inner
     }
 
     pub fn read_state(&self) -> Result<DeviceState> {
@@ -125,6 +137,29 @@ impl BladeDevice {
                 state.fan_rpm = command::get_fan_rpm(&self.inner, types::FanZone::Zone1).ok();
             }
         }
+
+        // Actual fan RPMs (live reading, works in any mode)
+        if self.supports("fan") {
+            let zones = [
+                types::FanZone::Zone1,
+                types::FanZone::Zone2,
+                types::FanZone::Zone3,
+                types::FanZone::Zone4,
+            ];
+            let mut rpms = Vec::new();
+            for zone in zones.iter().take(self.inner.info.fan_zones as usize) {
+                match command::get_actual_fan_rpm(&self.inner, *zone) {
+                    Ok(rpm) => rpms.push(rpm),
+                    Err(_) => break,
+                }
+            }
+            if !rpms.is_empty() {
+                state.fan_rpms = Some(rpms);
+            }
+        }
+
+        // Firmware version
+        state.firmware_version = command::get_firmware_version(&self.inner).ok();
 
         // Max fan speed mode
         state.max_fan_speed = command::get_max_fan_speed_mode(&self.inner).ok();

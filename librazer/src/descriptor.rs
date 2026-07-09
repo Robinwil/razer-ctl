@@ -1,4 +1,5 @@
 use crate::feature;
+use crate::types::PerfMode;
 
 // model_number_prefix shall conform to https://mysupport.razer.com/app/answers/detail/a_id/5481
 #[derive(Debug, Clone)]
@@ -7,9 +8,25 @@ pub struct Descriptor {
     pub name: &'static str,
     pub pid: u16,
     pub features: &'static [&'static str],
+    /// Number of physical fan zones on this device.
+    pub fan_zones: u8,
+    /// Supported performance modes. None means all modes are supported.
+    pub perf_modes: Option<&'static [PerfMode]>,
 }
 
 pub const SUPPORTED: &[Descriptor] = &[
+    Descriptor {
+        model_number_prefix: "RZ09-0406A",
+        name: "Razer Blade 17 (2021) RZ09-0406A",
+        pid: 0x0279,
+        features: &[
+            feature::FAN,
+            feature::KBDBACKLIGHT,
+            feature::PERF,
+        ],
+        fan_zones: 4,
+        perf_modes: Some(&[PerfMode::Balanced, PerfMode::Custom]),
+    },
     Descriptor {
         model_number_prefix: "RZ09-0483T",
         name: "Razer Blade 16\" (2023) Black",
@@ -22,6 +39,8 @@ pub const SUPPORTED: &[Descriptor] = &[
             feature::LIGHTSALWAYSON,
             feature::PERF,
         ],
+        fan_zones: 2,
+        perf_modes: None,
     },
     Descriptor {
         model_number_prefix: "RZ09-0482X",
@@ -34,6 +53,8 @@ pub const SUPPORTED: &[Descriptor] = &[
             feature::LIGHTSALWAYSON,
             feature::PERF,
         ],
+        fan_zones: 2,
+        perf_modes: None,
     },
 ];
 

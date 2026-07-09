@@ -18,8 +18,12 @@ mod cmd {
     // Fan commands
     pub const SET_FAN_RPM: u16 = 0x0d01;
     pub const GET_FAN_RPM: u16 = 0x0d81;
+    pub const GET_ACTUAL_FAN_RPM: u16 = 0x0d88;
     pub const SET_MAX_FAN_SPEED: u16 = 0x070f;
     pub const GET_MAX_FAN_SPEED: u16 = 0x078f;
+
+    // Device information
+    pub const GET_FIRMWARE_VERSION: u16 = 0x0081;
 
     // Logo commands
     pub const SET_LOGO_POWER: u16 = 0x0300;
@@ -56,6 +60,15 @@ fn set_perf_mode_internal(device: &Device, perf_mode: PerfMode, fan_mode: FanMod
             fan_mode,
             PerfMode::Balanced
         )));
+    }
+
+    if let Some(supported) = device.info.perf_modes {
+        if !supported.contains(&perf_mode) {
+            return Err(RazerError::PreconditionFailed(format!(
+                "{:?} is not supported on this device",
+                perf_mode
+            )));
+        }
     }
 
     ThermalZone::ALL.into_iter().try_for_each(|zone| {
@@ -100,28 +113,15 @@ pub fn set_perf_mode(device: &Device, perf_mode: PerfMode) -> Result<()> {
 }
 
 /// Gets the current performance mode and fan mode.
-///
-/// Queries both thermal zones and ensures they match.
 pub fn get_perf_mode(device: &Device) -> Result<(PerfMode, FanMode)> {
-    let results: Vec<_> = ThermalZone::ALL
-        .into_iter()
-        .map(|zone| {
-            let response = device.send(Packet::new(cmd::GET_PERF_MODE, &[0, zone as u8, 0, 0]))?;
-            Ok((
-                PerfMode::try_from(response.get_args()[2])?,
-                FanMode::try_from(response.get_args()[3])?,
-            ))
-        })
-        .collect::<Result<Vec<_>>>()?;
-
-    if results[0] != results[1] {
-        return Err(RazerError::Other(format!(
-            "Modes do not match between zones: {:?} vs {:?}",
-            results[0], results[1]
-        )));
-    }
-
-    Ok(results[0])
+    let response = device.send(Packet::new(
+        cmd::GET_PERF_MODE,
+        &[0, ThermalZone::Zone1 as u8, 0, 0],
+    ))?;
+    Ok((
+        PerfMode::try_from(response.get_args()[2])?,
+        FanMode::try_from(response.get_args()[3])?,
+    ))
 }
 
 /// Sets the CPU boost level. Requires Custom performance mode.
@@ -164,23 +164,59 @@ pub fn set_fan_rpm(device: &Device, rpm: u16) -> Result<()> {
         )));
     }
     debug!("Setting fan RPM to {}", rpm);
-    FanZone::ALL.into_iter().try_for_each(|zone| {
-        send_command(
-            device,
-            cmd::SET_FAN_RPM,
-            &[0, zone as u8, (rpm / 100) as u8],
-        )
-        .map(|_| ())
-    })
+    [FanZone::Zone1, FanZone::Zone2, FanZone::Zone3, FanZone::Zone4]
+        .into_iter()
+        .take(device.info.fan_zones as usize)
+        .try_for_each(|zone| {
+            send_command(
+                device,
+                cmd::SET_FAN_RPM,
+                &[0, zone as u8, (rpm / 100) as u8],
+            )
+            .map(|_| ())
+        })
 }
 
-/// Gets the current fan RPM for the specified zone.
+/// Gets the target fan RPM for the specified zone.
 pub fn get_fan_rpm(device: &Device, fan_zone: FanZone) -> Result<u16> {
     let response = device.send(Packet::new(cmd::GET_FAN_RPM, &[0, fan_zone as u8, 0]))?;
     if response.get_args()[1] != fan_zone as u8 {
         return Err(RazerError::ResponseMismatch);
     }
     Ok(response.get_args()[2] as u16 * 100)
+}
+
+/// Gets the actual (live) fan RPM for the specified zone.
+///
+/// Unlike [`get_fan_rpm`] which returns the target RPM, this returns the
+/// real current speed as reported by the fan controller. Works in any fan mode.
+pub fn get_actual_fan_rpm(device: &Device, fan_zone: FanZone) -> Result<u16> {
+    let response = device.send(Packet::new(cmd::GET_ACTUAL_FAN_RPM, &[0, fan_zone as u8, 0]))?;
+    if response.get_args()[1] != fan_zone as u8 {
+        return Err(RazerError::ResponseMismatch);
+    }
+    Ok(response.get_args()[2] as u16 * 100)
+}
+
+/// Gets the device firmware version (e.g., "v01.03").
+///
+/// The response has data_size=1 but the firmware ASCII string is at args[4..8]
+/// in the raw buffer (e.g., `[1, 0, 0, 0, 0x30, 0x31, 0x30, 0x33]` = "0103").
+pub fn get_firmware_version(device: &Device) -> Result<String> {
+    let response = device.send(Packet::new(cmd::GET_FIRMWARE_VERSION, &[0]))?;
+    let args = response.get_raw_args();
+    let raw: String = args
+        .iter()
+        .filter(|b| b.is_ascii_digit())
+        .map(|b| *b as char)
+        .collect();
+    if raw.len() >= 4 {
+        Ok(format!("v{}.{}", &raw[..2], &raw[2..4]))
+    } else if !raw.is_empty() {
+        Ok(raw)
+    } else {
+        Err(RazerError::ResponseMismatch)
+    }
 }
 
 /// Enables or disables max fan speed mode. Requires Custom performance mode.
@@ -211,18 +247,6 @@ pub fn set_fan_mode(device: &Device, mode: FanMode) -> Result<()> {
         )));
     }
     set_perf_mode_internal(device, PerfMode::Balanced, mode)
-}
-
-/// Sends a custom USB HID command to the device.
-///
-/// # Warning
-/// Use at your own risk. Incorrect commands may cause unexpected behavior.
-pub fn custom_command(device: &Device, command: u16, args: &[u8]) -> Result<()> {
-    let report = Packet::new(command, args);
-    debug!("Report   {:?}", report);
-    let response = device.send(report)?;
-    debug!("Response {:?}", response);
-    Ok(())
 }
 
 fn set_logo_power(device: &Device, mode: LogoMode) -> Result<Packet> {
